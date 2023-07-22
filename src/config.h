@@ -1,0 +1,7 @@
+#ifndef TWR_APRS_CONFIG_H
+#define TWR_APRS_CONFIG_H
+
+#define CALLSIGN "LZ1JCM-12"
+#define FREQUENCY 144600000
+
+#endif //TWR_APRS_CONFIG_H
