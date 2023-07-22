@@ -3,10 +3,12 @@
 
 #include "PMU.h"
 #include "Display.h"
+#include "Radio.h"
 #include "board_config.h"
 
-PMU *pmu;
-Display *display;
+PMU pmu;
+Display display;
+Radio radio;
 
 void setup() {
     pinMode( MIC_CTRL_PIN, OUTPUT );
@@ -18,15 +20,22 @@ void setup() {
     Serial.println( "Bootoing up." );
 
     // Initialize the power management unit
-    pmu = new PMU();
-    if( ! pmu->init() ){
+    pmu = PMU();
+    if( ! pmu.init() ){
         Serial.println( "Failed to initialize PMU." );
         while( true );
     }
 
+    pmu.startRadio();
+    pmu.startMic();
+
+    radio.begin();
+    radio.setVolume( 5 );
+    radio.setPower( 1 ); // Low power
+
     // Initialize the display
-    display = new Display();
-    display->homeScreen();
+    display = Display();
+    display.homeScreen();
     Serial.println( "Boot complete." );
 }
 
