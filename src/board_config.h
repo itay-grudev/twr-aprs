@@ -1,9 +1,6 @@
 #ifndef TWR_APRS_BOARD_CONFIG_H
 #define TWR_APRS_BOARD_CONFIG_H
 
-#undef I2C_SDA
-#undef I2C_SCL
-
 #define SA868_TX_PIN    (39)
 #define SA868_RX_PIN    (48)
 #define SA868_PTT_PIN   (41)
