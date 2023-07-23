@@ -1,11 +1,12 @@
 #include "SA868.h"
 
 #include <Arduino.h>
+#include "../board_config.h"
 
 #define INFO "I [SA868]: "
 #define WARN "W [SA868]: "
 
-SA868::SA868(Stream &stream, uint8_t pttPin, uint8_t pdPin, uint8_t rfPin)
+SA868::SA868( HardwareSerial &stream, uint8_t pttPin, uint8_t pdPin, uint8_t rfPin )
 {
     _stream = &stream;
     _pttPin = pttPin;
@@ -20,64 +21,69 @@ SA868::~SA868()
 
 void SA868::begin()
 {
-    pinMode(_pdPin, OUTPUT);
-    digitalWrite(_pdPin, HIGH);
+    pinMode( _pdPin, OUTPUT );
+    pinMode( _rfPin, OUTPUT );
+    pinMode( _pttPin, OUTPUT );
+
+    _stream->begin( 9600, SERIAL_8N1, SA868_RX_PIN, SA868_TX_PIN );
+
+    wake();
     delay(1000);
 
-    pinMode(_rfPin, OUTPUT);
-    digitalWrite(_rfPin, LOW);
+    lowPower();
 
     _transmitStatus = false;
-    pinMode(_pttPin, OUTPUT);
-    digitalWrite(_pttPin, HIGH);
+    digitalWrite( _pttPin, HIGH );
 
-    setGroup(bandwidth, transFreq, recvFreq, (teCXCSS)txCXCSS, sq, (teCXCSS)rxCXCSS);
-    setFilter(emphasis, highPass, lowPass);
+    setGroup( bandwidth, transFreq, recvFreq, (teCXCSS)txCXCSS, sq, (teCXCSS)rxCXCSS );
+    setFilter( emphasis, highPass, lowPass );
 }
 
 void SA868::sleep()
 {
-    digitalWrite(_pdPin, LOW);
+    digitalWrite( _pdPin, LOW );
 }
 
 void SA868::wake()
 {
-    digitalWrite(_pdPin, HIGH);
+    digitalWrite( _pdPin, HIGH );
 }
 
 void SA868::highPower()
 {
 
-    // digitalWrite(_rfPin, HIGH);
+    digitalWrite( _rfPin, HIGH );
 }
 
 void SA868::lowPower()
 {
-    digitalWrite(_rfPin, LOW);
+    digitalWrite( _rfPin, LOW );
 }
 
 void SA868::receive()
 {
     if (!_transmitStatus) return ;
     _transmitStatus = false;
-    digitalWrite(_pttPin, HIGH);
+    digitalWrite( _pttPin, HIGH );
 }
 
 void SA868::transmit()
 {
-    if (_transmitStatus) return ;
+    if( _transmitStatus ) 
+        return;
+    
     _transmitStatus = true;
-    digitalWrite(_pttPin, LOW);
+    digitalWrite( _pttPin, LOW );
 }
 
-bool SA868::scanRF(double freq)
+bool SA868::scanRF( double freq )
 {
     String data;
 
     // todo check freq
-    Serial.printf("S+%.4lf\r\n", freq);
-    _stream->printf("S+%.4lf\r\n", freq);
-    if (waitResponse(data) ) {
+    Serial.printf( "S+%.4lf\r\n", freq );
+    _stream->printf( "S+%.4lf\r\n", freq );
+    if( waitResponse( data )){
         Serial.println(INFO + data);
         return data.indexOf('0') != -1 ? true : false;
     } else {
@@ -97,32 +103,32 @@ bool SA868::setGroup(bool      bandwidth,
     char cmd[128] = { 0 };
     size_t index = 0;
 
-    if (!checkFreq(bandwidth, transFreq)) {
-        Serial.println(WARN"transFreq frequency error");
+    if( ! checkFreq( bandwidth, transFreq )){
+        Serial.println( WARN"transFreq frequency error" );
         return false;
     }
-    if (!checkFreq(bandwidth, recvFreq)) {
-        Serial.println(WARN"recvFreq frequency error");
+    if( ! checkFreq( bandwidth, recvFreq )){
+        Serial.println( WARN"recvFreq frequency error" );
         return false;
     }
 
-    if (sq > 8) {
-        Serial.println(WARN"Background noise is out of range");
+    if( sq > 8 ){
+        Serial.println( WARN"Background noise is out of range" );
         return false;
     }
     //AT+DMOSETGROUP=0,415.1250,415.1250,0000,4,0000\r\n
-    index += sprintf(&cmd[index], "AT+DMOSETGROUP=%d,", bandwidth ? 1 : 0);
-    index += sprintf(&cmd[index], "%03d.", (transFreq / (1000 * 1000)));
-    index += sprintf(&cmd[index], "%04d,", ((transFreq % (1000 * 1000)) / 100));
-    index += sprintf(&cmd[index], "%03d.", (recvFreq / (1000 * 1000)));
-    index += sprintf(&cmd[index], "%04d,", ((recvFreq % (1000 * 1000)) / 100));
-    index += sprintf(&cmd[index], "%s,%d,%s\r\n", cxcss[txCXCSS], sq, cxcss[rxCXCSS]);
-    Serial.printf("%s", cmd);
+    index += sprintf( &cmd[index], "AT+DMOSETGROUP=%d,", bandwidth ? 1 : 0 );
+    index += sprintf( &cmd[index], "%03d.", (transFreq / (1000 * 1000)) );
+    index += sprintf( &cmd[index], "%04d,", ((transFreq % (1000 * 1000)) / 100) );
+    index += sprintf( &cmd[index], "%03d.", (recvFreq / (1000 * 1000)) );
+    index += sprintf( &cmd[index], "%04d,", ((recvFreq % (1000 * 1000)) / 100) );
+    index += sprintf( &cmd[index], "%s,%d,%s\r\n", cxcss[txCXCSS], sq, cxcss[rxCXCSS] );
+    Serial.printf( "%s", cmd );
 
-    _stream->printf(cmd);
-    if (waitResponse(data) ) {
+    _stream->printf( cmd );
+    if( waitResponse( data )){
         Serial.println(INFO + data);
-        if (data.indexOf('0') != -1) {
+        if( data.indexOf('0') != -1 ){
             this->bandwidth = bandwidth;
             this->transFreq = transFreq;
             this->recvFreq = recvFreq;
@@ -138,19 +144,19 @@ bool SA868::setGroup(bool      bandwidth,
     }
 }
 
-bool SA868:: setVolume(uint8_t volume)
+bool SA868:: setVolume( uint8_t volume )
 {
     String data;
 
-    if (volume < 0 && volume > 8) {
-        Serial.println(WARN"volume out of range");
+    if( volume < 0 && volume > 8 ){
+        Serial.println( WARN"volume out of range" );
         return false;
     }
-    Serial.printf("AT+DMOSETVOLUME=%d\r\n", volume);
-    _stream->printf("AT+DMOSETVOLUME=%d\r\n", volume);
-    if (waitResponse(data) ) {
-        Serial.println(INFO + data);
-        if (data.indexOf('0') != -1) {
+    Serial.printf( "AT+DMOSETVOLUME=%d\r\n", volume );
+    _stream->printf( "AT+DMOSETVOLUME=%d\r\n", volume );
+    if( waitResponse( data )){
+        Serial.println( INFO + data );
+        if( data.indexOf('0') != -1 ){
             this->volume = volume;
             return true;
         }
@@ -165,11 +171,11 @@ int SA868::getRSSI()
 {
     String data;
 
-    Serial.printf("AT+RSSI?\r\n");
-    _stream->printf("AT+RSSI?\r\n");
-    if (waitResponse(data) ) {
-        Serial.println(INFO + data);
-        String rssi = data.substring(data.indexOf("RSSI=") + strlen("RSSI="), data.indexOf("\r\n"));
+    Serial.printf( "AT+RSSI?\r\n" );
+    _stream->printf( "AT+RSSI?\r\n" );
+    if( waitResponse( data )){
+        Serial.println( INFO + data );
+        String rssi = data.substring( data.indexOf("RSSI=") + strlen("RSSI="), data.indexOf("\r\n") );
         this->rssi = rssi.toInt();
         return rssi.toInt();
     } else {
@@ -178,15 +184,15 @@ int SA868::getRSSI()
     }
 }
 
-bool SA868::setFilter(bool emphasis, bool highPass, bool lowPass)
+bool SA868::setFilter( bool emphasis, bool highPass, bool lowPass )
 {
     String data;
 
-    Serial.printf("AT+SETFILTER=%d,%d,%d\r\n", !emphasis, !highPass, !lowPass);
-    _stream->printf("AT+SETFILTER=%d,%d,%d\r\n", !emphasis, !highPass, !lowPass);
-    if (waitResponse(data) ) {
-        Serial.println(INFO + data);
-        if (data.indexOf('0') != -1) {
+    Serial.printf( "AT+SETFILTER=%d,%d,%d\r\n", !emphasis, !highPass, !lowPass );
+    _stream->printf( "AT+SETFILTER=%d,%d,%d\r\n", !emphasis, !highPass, !lowPass );
+    if( waitResponse( data )){
+        Serial.println( INFO + data );
+        if( data.indexOf('0') != -1 ){
             this->emphasis = emphasis;
             this->highPass = highPass;
             this->lowPass = lowPass;
@@ -199,34 +205,36 @@ bool SA868::setFilter(bool emphasis, bool highPass, bool lowPass)
     }
 }
 
-bool SA868::waitResponse(String &data, String rsp, uint32_t timeout)
+bool SA868::waitResponse( String &data, String rsp, uint32_t timeout )
 {
     uint32_t startMillis = millis();
     do {
-        while (_stream->available() > 0) {
+        while( _stream->available() > 0 ){
             int8_t ch = _stream->read();
-            data += static_cast<char>(ch);
-            if (rsp.length() && data.endsWith(rsp)) {
+            data += static_cast<char>( ch );
+            if( rsp.length() && data.endsWith( rsp )){
                 return true;
             }
         }
-    } while (millis() - startMillis < 1000);
+    } while( millis() - startMillis < 1000 );
+    
     return false;
 }
 
-bool SA868::checkFreq(bool bandwidth, long long freq)
+bool SA868::checkFreq( bool bandwidth, long long freq )
 {
     int bw = bandwidth ? 25000 : 12500;
 
-    if ((freq < (134 * 1000 * 1000) && freq > (480 * 1000 * 1000)) || \
+    if(( freq < (134 * 1000 * 1000) && freq > (480 * 1000 * 1000)) ||
             (freq > (174 * 1000 * 1000) && freq < (320 * 1000 * 1000))) {
-        Serial.println(WARN"frequency out of range");
+        Serial.println( WARN"frequency out of range" );
         return false;
     }
 
-    if (freq % bw != 0) {
-        Serial.println(WARN"frequency error");
+    if( freq % bw != 0 ){
+        Serial.println( WARN"frequency error" );
         return false;
     }
+
     return true;
 }

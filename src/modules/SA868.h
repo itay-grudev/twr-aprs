@@ -1,7 +1,7 @@
 #ifndef TWR_APRS_SA868_H
 #define TWR_APRS_SA868_H
 
-#include "Stream.h"
+#include <HardwareSerial.h>
 
 typedef enum teCXCSS {
     //                  | Code Transform Bit Pattern | Hex Bit Pattern |
@@ -159,7 +159,7 @@ public:
      * @param[in] pdPin Module sleep enable, "0" or floating for sleep; "1" for normal work
      * @param[in] rfPin High and low power control; grounding is low power, floating is high power, default high power
      */
-    SA868(Stream &stream, uint8_t pttPin, uint8_t pdPin, uint8_t rfPin);
+    SA868(HardwareSerial &stream, uint8_t pttPin, uint8_t pdPin, uint8_t rfPin);
     ~SA868();
 
     void begin();
@@ -201,7 +201,7 @@ public:
      * @param[in] transFreq transmit frequency
      * @param[in] recvFreq  receive frequency
      * @param[in] txCXCSS   transmit CXCSS
-     * @param[in] sq        Background noise(0～8) （ 0： 监听模式， 扫描模式不能使用 0）
+     * @param[in] sq        Background noise(0～8) （ 0：Monitor mode, scan mode cannot be used 0）
      * @param[in] rxCXCSS   receive CXCSS
      *
      * @return
@@ -264,7 +264,7 @@ private:
     bool waitResponse(String &data, String rsp = "\r\n", uint32_t timeout = 1000);
 
 protected:
-    Stream *_stream;
+    HardwareSerial *_stream;
     uint8_t _pttPin = 0;
     uint8_t _pdPin  = 0;
     uint8_t _rfPin  = 0;
